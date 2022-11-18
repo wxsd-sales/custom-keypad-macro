@@ -1,5 +1,3 @@
-
-
 /********************************************************
 Copyright (c) 2022 Cisco and/or its affiliates.
 This software is licensed to you under the terms of the Cisco Sample
