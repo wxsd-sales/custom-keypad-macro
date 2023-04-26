@@ -31,12 +31,12 @@ const config = {
     color: '#1170CF'
   },
   panelKeys: [
-    ['display', 'del'],
+    ['display', '❌'],
     ['1', '2', '3'],
     ['4', '5', '6'],
     ['7', '8', '9'],
     ['*', '0', '#'],
-    ['+', '', '📞']
+    ['', '📞', '']
   ]
 }
 
@@ -48,17 +48,26 @@ createPanel(config.button)
 xapi.Event.UserInterface.Extensions.Widget.Action.on(processWidgets);
 xapi.Event.UserInterface.Extensions.Panel.Clicked.on(processClicks)
 
+let holding = null;
+
 function processClicks(event) {
-  if (event.PanelId == config.panelId) {
-    clearDiplay();
-  }
+  if (event.PanelId != config.panelId) return;
+  clearDiplay();
 }
 
 function processWidgets(event) {
-  console.log(event)
-  if (event.Type != 'pressed') return;
   if (!event.WidgetId.startsWith(config.panelId)) return;
+  if (event.Type == 'clicked') return;
   const selection = event.WidgetId.split('-').pop();
+  
+  if (event.Type == 'released') {
+    holding = null;
+    return
+  }
+
+  if (event.Type != 'pressed') return;
+  
+  console.log(`Key [${selection}] pressed`)
   switch (selection) {
     case '📞':
     case 'call':
@@ -66,10 +75,30 @@ function processWidgets(event) {
       placeCall();
       break;
     case 'del':
+    case '❌':
       delDigit();
       break;
     default:
       addDigit(selection);
+  }
+  holding = selection;
+  setTimeout(processHold, 1500, selection)
+}
+
+async function processHold(digit){
+  if(holding != digit) return;
+  holding = null;
+  switch (digit) {
+    case 'del':
+    case '❌':
+      console.log(`Key [${digit}] held, clearing display`);
+      clearDiplay();
+      break;
+    case '0':
+      await delDigit();
+      addDigit('+');
+      console.log(`Digit [0] relaced with [+]`)
+      break;
   }
 }
 
@@ -88,12 +117,11 @@ async function addDigit(digit) {
 async function delDigit() {
   const number = await getDisplayValue()
   const newNumber = number.substring(0, number.length - 1);
-  xapi.Command.UserInterface.Extensions.Widget.SetValue(
+  return xapi.Command.UserInterface.Extensions.Widget.SetValue(
         { Value: newNumber, WidgetId: config.panelId + '-display' });
 }
 
 async function clearDiplay() {
-  console.log('Clearning display');
   xapi.Command.UserInterface.Extensions.Widget.SetValue(
     { Value: '', WidgetId: `${config.panelId}-display` });
 }
